@@ -14,6 +14,10 @@ $query_qris = mysqli_query($koneksi, "SELECT id_qris, merchant_name, qris_code, 
 if ($data = mysqli_fetch_assoc($query_qris)) {
     $qris_aktif = $data;
 }
+
+// Flag untuk menentukan apakah QRIS harus ditampilkan
+$tampilkan_qris = false;
+$nominal_deposit = 0;
 ?>
 
 
@@ -35,10 +39,14 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
       </script>';
     exit;
   }
+  
   if (isset($_POST['deposit'])) {
     $id_akun_deposit = $id_akun_masuk;
     $kode_deposit = $kd.(generatorRangkaianAcak(10));
     $kategori_rekening_deposit = $kategori_rekening_aktif;
+    $jumlah_deposit = $_POST['jumlah_deposit'];
+    $nomor_referensi_deposit = $_POST['nomor_referensi_deposit'];
+    
     // Patch: handle QRIS, set rekening fields to 0 if kategori QRIS (karena form tidak kirim field ini)
     if ($kategori_rekening_deposit === 'qris') {
         $id_rekening_anggota_deposit = 0;
@@ -53,26 +61,34 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
         $id_rekening_admin_deposit = isset($_POST['id_rekening_admin_deposit']) && $_POST['id_rekening_admin_deposit'] !== '' ? $_POST['id_rekening_admin_deposit'] : 0;
     }
     }
-    $jumlah_deposit = $_POST['jumlah_deposit'];
-    $nomor_referensi_deposit = $_POST['nomor_referensi_deposit'];
+    
     $tanggal_deposit = date("Y-m-d H:i:s");
-       if($jumlah_deposit < 50000) {
+    
+    if($jumlah_deposit < 50000) {
       echo '
         <script>
           alert("Deposit Minimal Sebesar Rp 50.000!");
         </script>';
     } else {
-       if($_POST['jumlah_deposit']) 
-    $deposit = mysqli_query($koneksi, "INSERT INTO deposit (id_akun_deposit, kode_deposit, kategori_rekening_deposit, id_rekening_anggota_deposit, id_rekening_admin_deposit, jumlah_deposit, nomor_referensi_deposit, tanggal_deposit) VALUES ('$id_akun_deposit', '$kode_deposit', '$kategori_rekening_deposit', '$id_rekening_anggota_deposit', '$id_rekening_admin_deposit', '$jumlah_deposit', '$nomor_referensi_deposit', '$tanggal_deposit')");
-      if($deposit) {
-     echo '
-       <script>
-         alert("Deposit Telah Behasil");
-     window.location.replace("riwayat_deposit");
-       </script>';
-   }
+       if($_POST['jumlah_deposit']) {
+         // Untuk QRIS, tampilkan QRIS dulu sebelum insert
+         if ($kategori_rekening_deposit === 'qris') {
+             $tampilkan_qris = true;
+             $nominal_deposit = $jumlah_deposit;
+         } else {
+             // Untuk metode lain, langsung insert
+             $deposit = mysqli_query($koneksi, "INSERT INTO deposit (id_akun_deposit, kode_deposit, kategori_rekening_deposit, id_rekening_anggota_deposit, id_rekening_admin_deposit, jumlah_deposit, nomor_referensi_deposit, tanggal_deposit) VALUES ('$id_akun_deposit', '$kode_deposit', '$kategori_rekening_deposit', '$id_rekening_anggota_deposit', '$id_rekening_admin_deposit', '$jumlah_deposit', '$nomor_referensi_deposit', '$tanggal_deposit')");
+             if($deposit) {
+                 echo '
+                   <script>
+                     alert("Deposit Telah Berhasil");
+                 window.location.replace("riwayat_deposit");
+                   </script>';
+             }
+         }
+       }
+    }
   }
-}
 
 ?>
 
@@ -166,11 +182,12 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
       </div>
     </div>
     <?php if ($kategori_rekening_aktif == 'qris' && $qris_aktif): ?>
-    <div class="col-10" id="qris-container" style="display:none;">
+    <div class="col-10" id="qris-container" style="display:<?php echo ($tampilkan_qris) ? 'block' : 'none'; ?>;">
       <div class="bg-dark rounded p-2 text-center">
         <span class="d-block mb-2" style="font-size: 14px;">Pembayaran via QRIS</span>
         <span class="d-block mb-2">Merchant: <b><?= htmlspecialchars($qris_aktif['merchant_name'], ENT_QUOTES, 'UTF-8') ?></b></span>
         <span class="d-block mb-2">Kode QRIS: <b><?= htmlspecialchars($qris_aktif['qris_code'], ENT_QUOTES, 'UTF-8') ?></b></span>
+        <span class="d-block mb-2" style="font-size: 18px; color: #D0B300;">Jumlah Transfer: <b>Rp <?= number_format($nominal_deposit) ?></b></span>
         <?php if (!empty($qris_aktif['gambar_qris'])): ?>
           <img src="<?php echo $alamat_website_admin; ?>assets/images/qris/<?= htmlspecialchars($qris_aktif['gambar_qris'], ENT_QUOTES, 'UTF-8') ?>" alt="QRIS QR Code" width="150" height="150" style="background:#fff; padding:8px; border-radius:8px;">
           <div class="mt-2">
@@ -180,6 +197,9 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
           <span class="text-muted">Belum ada gambar QRIS</span>
         <?php endif; ?>
         <div class="mt-2"><small>Scan QRIS di aplikasi e-wallet/bank Anda</small></div>
+        <div class="mt-3">
+          <button type="button" class="btn btn-success w-100" onclick="selesaiQRIS()">Sudah Scan & Transfer</button>
+        </div>
       </div>
     </div>
     <div class="col-10">
@@ -191,35 +211,6 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
         <span class="d-block" id="nominal" style="font-size: 24px;">0 (IDR)</span>
       </div>
     </div>
-    <script>
-      // Tampilkan QRIS hanya saat tekan Enter atau klik tombol Deposit
-      document.addEventListener('DOMContentLoaded', function() {
-        const inputNominal = document.getElementById('hanya-angka');
-        const qrisContainer = document.getElementById('qris-container');
-        const depositForm = document.querySelector('form');
-        
-        if (inputNominal && qrisContainer) {
-          // Tampilkan QRIS saat tekan Enter
-          inputNominal.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              if (this.value.trim() !== '') {
-                qrisContainer.style.display = 'block';
-              }
-            }
-          });
-          
-          // Tampilkan QRIS saat form di-submit (klik tombol Deposit)
-          if (depositForm) {
-            depositForm.addEventListener('submit', function(event) {
-              if (inputNominal.value.trim() !== '') {
-                qrisContainer.style.display = 'block';
-              }
-            });
-          }
-        }
-      });
-    </script>
     <div class="col-10">
       <div class="bg-dark rounded p-2">
         <span class="d-block mb-2" style="font-size: 14px;">Nomor Referensi</span>
@@ -229,6 +220,25 @@ if ($data = mysqli_fetch_assoc($query_qris)) {
     <div class="col-10">
       <button type="submit" name="deposit" class="btn btn-utama w-100 text-uppercase py-3" style="font-size: 12px;">Deposit QRIS</button>
     </div>
+    <script>
+      function selesaiQRIS() {
+        // Simpan data deposit ke database
+        const form = document.querySelector('form');
+        const jumlah = document.getElementById('hanya-angka').value;
+        
+        if (jumlah.trim() !== '') {
+          // Submit form dengan hidden input
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'konfirmasi_qris';
+          input.value = '1';
+          form.appendChild(input);
+          form.submit();
+        } else {
+          alert('Silahkan masukan jumlah deposit');
+        }
+      }
+    </script>
     <?php else: ?>
     <div class="col-10">
       <div class="bg-dark rounded p-2">
