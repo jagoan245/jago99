@@ -103,8 +103,8 @@ $nomor_referensi_temp = '';
     $kategori_rekening_deposit = 'qris';
     $id_rekening_anggota_deposit = 0;
     $id_rekening_admin_deposit = 0;
-    $jumlah_deposit = $_POST['jumlah_deposit'];
-    $nomor_referensi_deposit = $_POST['nomor_referensi_deposit'];
+    $jumlah_deposit = $_POST['jumlah_deposit_konfirmasi'];
+    $nomor_referensi_deposit = $_POST['nomor_referensi_konfirmasi'];
     $tanggal_deposit = date("Y-m-d H:i:s");
     
     $deposit = mysqli_query($koneksi, "INSERT INTO deposit (id_akun_deposit, kode_deposit, kategori_rekening_deposit, id_rekening_anggota_deposit, id_rekening_admin_deposit, jumlah_deposit, nomor_referensi_deposit, tanggal_deposit) VALUES ('$id_akun_deposit', '$kode_deposit', '$kategori_rekening_deposit', '$id_rekening_anggota_deposit', '$id_rekening_admin_deposit', '$jumlah_deposit', '$nomor_referensi_deposit', '$tanggal_deposit')");
@@ -354,29 +354,47 @@ $nomor_referensi_temp = '';
     <div id="qris-payment-container" style="display: <?php echo ($tampilkan_qris) ? 'block' : 'none'; ?>;">
     <?php if ($kategori_rekening_aktif == 'qris' && $qris_aktif && $tampilkan_qris): ?>
     <div class="col-10">
-      <div class="bg-dark rounded p-2 text-center">
-        <span class="d-block mb-3" style="font-size: 16px; font-weight: bold;">SCAN QRIS UNTUK PEMBAYARAN</span>
-        <span class="d-block mb-2">Merchant: <b><?= htmlspecialchars($qris_aktif['merchant_name'], ENT_QUOTES, 'UTF-8') ?></b></span>
-        <span class="d-block mb-2">Kode QRIS: <b><?= htmlspecialchars($qris_aktif['qris_code'], ENT_QUOTES, 'UTF-8') ?></b></span>
-        <span class="d-block mb-3" style="font-size: 18px; color: #D0B300;">Jumlah Transfer: <b>Rp <?= number_format($nominal_deposit) ?></b></span>
-        <?php if (!empty($qris_aktif['gambar_qris'])): ?>
-          <img src="<?php echo $alamat_website_admin; ?>assets/images/qris/<?= htmlspecialchars($qris_aktif['gambar_qris'], ENT_QUOTES, 'UTF-8') ?>" alt="QRIS QR Code" width="180" height="180" style="background:#fff; padding:8px; border-radius:8px; margin: 20px 0;">
-          <div class="mt-2">
-            <a href="<?php echo $alamat_website_admin; ?>assets/images/qris/<?= htmlspecialchars($qris_aktif['gambar_qris'], ENT_QUOTES, 'UTF-8') ?>" download class="btn btn-sm btn-success mt-2">Unduh QRIS</a>
+      <div class="bg-dark rounded p-3">
+        <div style="text-align: center;">
+          <h5 style="font-size: 16px; font-weight: bold; letter-spacing: 0; margin-bottom: 20px; color: #fff;">SCAN QRIS UNTUK PEMBAYARAN</h5>
+          
+          <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #aaa;">Merchant</p>
+            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #fff;"><?= htmlspecialchars($qris_aktif['merchant_name'], ENT_QUOTES, 'UTF-8') ?></p>
           </div>
-        <?php else: ?>
-          <span class="text-muted">Belum ada gambar QRIS</span>
-        <?php endif; ?>
-        <div class="mt-3"><small>Scan QRIS di aplikasi e-wallet/bank Anda</small></div>
+          
+          <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <p style="margin: 0 0 8px 0; font-size: 13px; color: #aaa;">Kode QRIS</p>
+            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #fff; word-break: break-all;"><?= htmlspecialchars($qris_aktif['qris_code'], ENT_QUOTES, 'UTF-8') ?></p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #D0B300, #FFC107); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0 0 5px 0; font-size: 12px; color: rgba(0,0,0,0.6);">Jumlah Transfer</p>
+            <p style="margin: 0; font-size: 18px; font-weight: bold; color: #000;">Rp <?= number_format($nominal_deposit) ?></p>
+          </div>
+          
+          <?php if (!empty($qris_aktif['gambar_qris'])): ?>
+            <div style="margin: 20px 0;">
+              <img src="<?php echo $alamat_website_admin; ?>assets/images/qris/<?= htmlspecialchars($qris_aktif['gambar_qris'], ENT_QUOTES, 'UTF-8') ?>" alt="QRIS QR Code" style="width: 180px; height: 180px; background: #fff; padding: 8px; border-radius: 8px; display: inline-block;">
+            </div>
+            <div style="margin-bottom: 15px;">
+              <a href="<?php echo $alamat_website_admin; ?>assets/images/qris/<?= htmlspecialchars($qris_aktif['gambar_qris'], ENT_QUOTES, 'UTF-8') ?>" download class="btn btn-success" style="font-size: 12px;">Unduh QRIS</a>
+            </div>
+          <?php else: ?>
+            <p style="color: #aaa; font-size: 13px; margin: 20px 0;">Belum ada gambar QRIS</p>
+          <?php endif; ?>
+          
+          <p style="font-size: 12px; color: #aaa; margin-top: 15px;">Scan QRIS di aplikasi e-wallet/bank Anda</p>
+        </div>
         
         <!-- Hidden inputs untuk konfirmasi -->
         <input type="hidden" name="kode_deposit" value="<?php echo htmlspecialchars($kode_deposit_temp); ?>">
         <input type="hidden" name="jumlah_deposit_konfirmasi" value="<?php echo htmlspecialchars($nominal_deposit); ?>">
         <input type="hidden" name="nomor_referensi_konfirmasi" value="<?php echo htmlspecialchars($nomor_referensi_temp); ?>">
         
-        <div class="mt-4 d-flex gap-2">
-          <button type="button" class="btn btn-secondary w-100" onclick="kembaliKeForm()">Kembali</button>
-          <button type="submit" name="konfirmasi_qris" class="btn btn-success w-100">Sudah Bayar</button>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="kembaliKeForm()">Kembali</button>
+          <button type="submit" name="konfirmasi_qris" class="btn btn-success" style="flex: 1;">Sudah Bayar</button>
         </div>
       </div>
     </div>
